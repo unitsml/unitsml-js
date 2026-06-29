@@ -43,16 +43,20 @@
   },
   "devDependencies": {
     "@lutaml/opal-runtime": "^1.0.0",
+    "@plurimath/mml": "^0.1.0",
+    "@unitsml/unitsdb": "^3.0.0",
     "esbuild": "^0.23.0",
     "typescript": "^5.5.0"
   },
   "peerDependencies": {
-    "@lutaml/opal-runtime": "^1.0.0"
+    "@lutaml/opal-runtime": "^1.0.0",
+    "@plurimath/mml": "^0.1.0",
+    "@unitsml/unitsdb": "^3.0.0"
   },
   "peerDependenciesMeta": {
-    "@lutaml/opal-runtime": {
-      "optional": true
-    }
+    "@lutaml/opal-runtime": { "optional": true },
+    "@plurimath/mml": { "optional": true },
+    "@unitsml/unitsdb": { "optional": true }
   },
   "publishConfig": {
     "access": "public"
