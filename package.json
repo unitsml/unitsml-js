@@ -1,0 +1,60 @@
+{
+  "name": "@unitsml/unitsml",
+  "version": "0.6.7",
+  "private": false,
+  "description": "JavaScript release of unitsml-ruby, published as @unitsml/unitsml on npm. Opal-compiled; ships self-contained + external flavors. Built from source at unitsml-ruby.",
+  "main": "./dist/unitsml-no-opal.js",
+  "module": "./dist/unitsml-no-opal.js",
+  "browser": "./dist/unitsml.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "browser": "./dist/unitsml.js",
+      "import": "./dist/unitsml-no-opal.js",
+      "require": "./dist/unitsml-no-opal.js",
+      "default": "./dist/unitsml-no-opal.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "node scripts/build.js",
+    "test": "node scripts/test.js"
+  },
+  "keywords": [
+    "units",
+    "unitsml",
+    "si",
+    "metrology",
+    "opal",
+    "ruby"
+  ],
+  "license": "BSD-2-Clause",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/unitsml/unitsml-js"
+  },
+  "homepage": "https://github.com/unitsml/unitsml-js#readme",
+  "bugs": {
+    "url": "https://github.com/unitsml/unitsml-js/issues"
+  },
+  "devDependencies": {
+    "@lutaml/opal-runtime": "^1.0.0",
+    "esbuild": "^0.23.0",
+    "typescript": "^5.5.0"
+  },
+  "peerDependencies": {
+    "@lutaml/opal-runtime": "^1.0.0"
+  },
+  "peerDependenciesMeta": {
+    "@lutaml/opal-runtime": {
+      "optional": true
+    }
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}
