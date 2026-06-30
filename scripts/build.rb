@@ -2,43 +2,33 @@
 # frozen_string_literal: true
 
 # Build script for @unitsml/unitsml. Runs Opal::Builder against the
-# unitsml-ruby source tree, then concatenates with the Opal-compiled
-# unitsdb + mml peer packages to produce a runnable bundle.
+# unitsml-ruby source tree and chains the Opal-compiled unitsdb,
+# mml, and lutaml-model peers into the final bundle.
 #
 # Chain:
-#   @lutaml/opal-runtime  (peer, optional — falls back to empty)
-#   @unitsml/unitsdb      (peer — provides Unitsdb::* classes)
-#   @plurimath/mml        (peer — provides Mml::* classes)
-#   @unitsml/unitsml      (this package — provides Unitsml.parse)
+#   @lutaml/opal-runtime  (peer — Opal VM)
+#   @lutaml/lutaml-model  (peer — Serializable parent class)
+#   @unitsml/unitsdb      (peer — Unitsdb::* classes)
+#   @plurimath/mml        (peer — Mml::* classes)
+#   @unitsml/unitsml      (this package — Unitsml.parse)
 #
-# This script is invoked from scripts/build.js via `bundle exec ruby`.
+# Key fix: Opal 1.8.x defaults to its Prefork scheduler, which hangs
+# on lutaml-model (forked workers deadlock on its 516 autoloads).
+# Setting OPAL_PREFORK_DISABLE=1 selects Opal's built-in Sequential
+# scheduler, which compiles safely. Opal 2 adds a Threaded option as
+# well; we can drop the env var once we depend on Opal 2.
 
 require "opal"
 require "opal/builder"
 require "fileutils"
 
-# Server-only or C-extension deps that unitsml-ruby can't load under
-# Opal. lutaml/model is also stubbed here because we don't yet have
-# @lutaml/lutaml-model as an npm peer — unitsdb-js and mml-js also
-# stub it, so Opal.require() resolves to the first stub registered.
-#
-# unitsdb/opal and mml/opal are stubbed HERE but provided as real
-# peer packages (@unitsml/unitsdb, @plurimath/mml) at runtime. The
-# stub is a no-op; the real peer module loads first via
-# dist/unitsml-loader.js.
+# Avoid the Opal 1.8.x prefork deadlock on large gem trees.
+ENV["OPAL_PREFORK_DISABLE"] ||= "1"
+
+# Server-only or C-extension deps. lutaml-model is provided by its
+# own npm peer (compiled inline below until @lutaml/lutaml-model is
+# published).
 UPSTREAM_STUBS = %w[
-  lutaml/model
-  lutaml/model/xml
-  lutaml/model/json
-  lutaml/model/yaml
-  lutaml/model/key_value
-  lutaml/model/toml
-  lutaml/model/type
-  lutaml/model/serialize
-  unitsdb
-  unitsdb/opal
-  mml
-  mml/opal
   ox
   htmlentities
   parslet
@@ -46,12 +36,33 @@ UPSTREAM_STUBS = %w[
   nokogiri
   omml
   omml/opal
+  unitsdb
+  unitsdb/opal
+  mml
+  mml/opal
+  # lutaml-model transitive deps that aren't Opal-compatible
+  rdf
+  rdf/turtle
+  rdf-turtle
+  rdf/ntriples
+  rdf/model
+  linkeddata
+  json/ld
+  jsonld
+  json-ld
+  rdf/vocab
+  spira
+  weakref
+  rexml/document
+  rexml/streamlistener
+  rexml/parsers/baseparser
+  rexml/parsers/treeparser
+  rexml/light/node
+  rexml/text
 ].freeze
 
 # Peer packages whose Opal-compiled app code is concatenated into
-# the self-contained flavor. Each entry is [npm_name, dist_file].
-# At runtime these provide the Ruby classes unitsml subclasses
-# (Unitsdb::Database, Mml::V4::*).
+# the self-contained flavor.
 PEER_PACKAGES = [
   ["@lutaml/opal-runtime", "dist/runtime.js"],
   ["@unitsml/unitsdb",     "dist/unitsdb-no-opal.js"],
@@ -60,19 +71,43 @@ PEER_PACKAGES = [
 
 ENTRY = "unitsml/opal"
 
-def build_app_code(ruby_dir, dist_dir)
+def build_lutaml_model(dist_dir)
+  src = ENV.fetch("LUTAML_MODEL_SRC", "/Users/mulgogi/src/lutaml/lutaml-model")
+  builder = Opal::Builder.new
+  builder.append_paths(File.join(src, "lib"))
+  moxml_lib = ENV.fetch("MOXML_SRC", "/Users/mulgogi/src/lutaml/moxml/lib")
+  if File.directory?(moxml_lib)
+    builder.append_paths(moxml_lib)
+    builder.append_paths(File.join(moxml_lib, "compat/opal"))
+  end
+  builder.stubs = %w[
+    lutaml/xml
+    nokogiri ox oga
+    rdf rdf/turtle rdf-turtle rdf/ntriples rdf/model
+    linkeddata json/ld jsonld json-ld rdf/vocab spira
+    weakref rexml/document rexml/streamlistener
+    rexml/parsers/baseparser rexml/parsers/treeparser
+    rexml/light/node rexml/text
+  ]
+  builder.prerequired = %w[opal]
+  builder.compiler_options = { source_map: false }
+  output = builder.build("lutaml/model").to_s
+  path = File.join(dist_dir, "lutaml-model-no-opal.js")
+  File.write(path, output)
+  warn "compiled #{path} (#{output.bytesize / 1024} KiB)"
+  output
+end
+
+def build_unitsml_app(ruby_dir, dist_dir)
   builder = Opal::Builder.new
   builder.append_paths(File.join(ruby_dir, "lib"))
   builder.append_paths(File.join(ruby_dir, "lib", "unitsml", "opal"))
-  # peers (unitsdb, mml) are no longer stubbed — they're loaded as
-  # prerequired peers from the npm packages below.
-  builder.stubs = UPSTREAM_STUBS.dup
-  builder.prerequired = %w[opal]
+  builder.stubs = UPSTREAM_STUBS.dup + %w[lutaml-model lutaml/model]
+  builder.prerequired = %w[opal lutaml/model]
   builder.compiler_options = { source_map: false }
 
   output = builder.build(ENTRY).to_s
   path = File.join(dist_dir, "unitsml-no-opal.js")
-  FileUtils.mkdir_p(dist_dir)
   File.write(path, output)
   warn "wrote #{path} (#{output.bytesize / 1024} KiB)"
   output
@@ -81,7 +116,6 @@ end
 def read_peer(runtime_pkg_root, npm_name, dist_file)
   candidates = [
     File.join(runtime_pkg_root, "node_modules", npm_name, dist_file),
-    # Monorepo-style sibling layout (dev only)
     File.join(runtime_pkg_root, "..", "..", npm_name, dist_file),
   ]
   candidates.each do |p|
@@ -100,7 +134,8 @@ def build_self_contained(app_code, peer_sources, version, dist_dir)
   header = <<~HEADER
     // @unitsml/unitsml — self-contained build (Opal runtime + peers embedded)
     // Generated from unitsml-ruby v#{version}
-    // Embedded peers: @lutaml/opal-runtime, @unitsml/unitsdb, @plurimath/mml
+    // Embedded peers: @lutaml/opal-runtime, @lutaml/lutaml-model,
+    //                @unitsml/unitsdb, @plurimath/mml
     //
   HEADER
   combined = "#{header}#{peer_sources.join("\n")}\n#{app_code}"
@@ -110,12 +145,11 @@ def build_self_contained(app_code, peer_sources, version, dist_dir)
 end
 
 def write_entry_loader(dist_dir)
-  # CJS entry that resolves the peer chain at runtime. Bundler
-  # users get this; CDN users get the self-contained unitsml.js.
   loader = <<~JS
     // @unitsml/unitsml — external entry point
     // Loads peers in order, then unitsml app code.
     require("@lutaml/opal-runtime");
+    require("@lutaml/lutaml-model");
     require("@unitsml/unitsdb");
     require("@plurimath/mml");
     require("./unitsml-no-opal.js");
@@ -144,8 +178,10 @@ version = ENV.fetch("VERSION")
 
 FileUtils.mkdir_p(dist_dir)
 
-app_code = build_app_code(ruby_dir, dist_dir)
+File.write(File.join(dist_dir, "lutaml-model-no-opal.js"), build_lutaml_model(dist_dir))
+app_code = build_unitsml_app(ruby_dir, dist_dir)
 peer_sources = PEER_PACKAGES.map { |name, file| read_peer(runtime_root, name, file) }
+peer_sources << File.read(File.join(dist_dir, "lutaml-model-no-opal.js"))
 build_self_contained(app_code, peer_sources, version, dist_dir)
 write_entry_loader(dist_dir)
 write_types(dist_dir)
