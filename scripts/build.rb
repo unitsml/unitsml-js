@@ -21,6 +21,7 @@
 require "opal"
 require "opal/builder"
 require "fileutils"
+require "tmpdir"
 
 # Avoid the Opal 1.8.x prefork deadlock on large gem trees.
 ENV["OPAL_PREFORK_DISABLE"] ||= "1"
@@ -76,10 +77,10 @@ def checkout_lutaml_model
     return local
   end
 
-  dir = File.join(TMP, "lutaml-model")
-  FileUtils.rm_rf(dir)
-  FileUtils.mkdir_p(dir)
-  run("git clone --depth 1 https://github.com/lutaml/lutaml-model.git \#{dir}")
+  dir = Dir.mktmpdir("lutaml-model")
+  success = system("git", "clone", "--depth", "1",
+                   "https://github.com/lutaml/lutaml-model.git", dir)
+  abort "git clone of lutaml-model failed" unless success
   dir
 end
 
