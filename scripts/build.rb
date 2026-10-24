@@ -71,6 +71,18 @@ PEER_PACKAGES = [
 
 ENTRY = "unitsml/opal"
 
+def checkout_lutaml_model
+  if (local = ENV["LUTAML_MODEL_SRC"]) && File.directory?(File.join(local, "lib"))
+    return local
+  end
+
+  dir = File.join(TMP, "lutaml-model")
+  FileUtils.rm_rf(dir)
+  FileUtils.mkdir_p(dir)
+  run("git clone --depth 1 https://github.com/lutaml/lutaml-model.git \#{dir}")
+  dir
+end
+
 def build_lutaml_model(dist_dir)
   src = checkout_lutaml_model
   builder = Opal::Builder.new
