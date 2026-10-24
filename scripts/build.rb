@@ -84,23 +84,35 @@ def checkout_lutaml_model
   dir
 end
 
-def checkout_moxml
-  if (local = ENV["MOXML_SRC"]) && File.directory?(File.join(local, "lib"))
-    return local
-  end
+# Pinned to the last pair whose Opal path this build compiles: main
+# requires the leptris FFI gem from the boot file (lutaml-model#1008),
+# and moxml's config.rb probes leptris with a require Opal resolves
+# statically. Stubs make moxml's rescue LoadError degrade gracefully
+# at runtime, keeping the default (non-leptris) adapter.
+LUTAML_MODEL_REF = ENV.fetch("LUTAML_MODEL_REF", "v0.8.84")
+MOXML_REF = ENV.fetch("MOXML_REF", "v0.5.84")
 
-  dir = Dir.mktmpdir("moxml")
-  success = system("git", "clone", "--depth", "1",
-                   "https://github.com/lutaml/moxml.git", dir)
-  abort "git clone of moxml failed" unless success
+def checkout(ref, url, env_src, name)
+  local = ENV[env_src]
+  return local if local && File.directory?(File.join(local, "lib"))
+
+  dir = Dir.mktmpdir(name)
+  success = system("git", "clone", "--depth", "1", "--branch", ref, url, dir)
+  abort "git clone of #{name}@#{ref} failed" unless success
   dir
 end
 
 def build_lutaml_model(dist_dir)
-  src = checkout_lutaml_model
+  src = checkout(LUTAML_MODEL_REF, "https://github.com/lutaml/lutaml-model.git",
+                 "LUTAML_MODEL_SRC", "lutaml-model")
   builder = Opal::Builder.new
+  builder.stubs += %w[leptris monitor]
   builder.append_paths(File.join(src, "lib"))
-  moxml_lib = File.join(checkout_moxml, "lib")
+  moxml_lib = File.join(
+    checkout(MOXML_REF, "https://github.com/lutaml/moxml.git",
+             "MOXML_SRC", "moxml"),
+    "lib",
+  )
   builder.append_paths(moxml_lib)
   builder.append_paths(File.join(moxml_lib, "compat/opal"))
   builder.stubs = %w[
