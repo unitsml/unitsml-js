@@ -42,7 +42,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: "22"
           # NO registry-url — prevents setup-node from writing
 
       - name: Upgrade npm CLI (Trusted Publishers needs 10.9.1+)
