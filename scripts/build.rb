@@ -84,15 +84,25 @@ def checkout_lutaml_model
   dir
 end
 
+def checkout_moxml
+  if (local = ENV["MOXML_SRC"]) && File.directory?(File.join(local, "lib"))
+    return local
+  end
+
+  dir = Dir.mktmpdir("moxml")
+  success = system("git", "clone", "--depth", "1",
+                   "https://github.com/lutaml/moxml.git", dir)
+  abort "git clone of moxml failed" unless success
+  dir
+end
+
 def build_lutaml_model(dist_dir)
   src = checkout_lutaml_model
   builder = Opal::Builder.new
   builder.append_paths(File.join(src, "lib"))
-  moxml_lib = ENV.fetch("MOXML_SRC", "/Users/mulgogi/src/lutaml/moxml/lib")
-  if File.directory?(moxml_lib)
-    builder.append_paths(moxml_lib)
-    builder.append_paths(File.join(moxml_lib, "compat/opal"))
-  end
+  moxml_lib = File.join(checkout_moxml, "lib")
+  builder.append_paths(moxml_lib)
+  builder.append_paths(File.join(moxml_lib, "compat/opal"))
   builder.stubs = %w[
     lutaml/xml
     nokogiri ox oga
