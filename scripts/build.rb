@@ -72,7 +72,7 @@ PEER_PACKAGES = [
 ENTRY = "unitsml/opal"
 
 def build_lutaml_model(dist_dir)
-  src = ENV.fetch("LUTAML_MODEL_SRC", "/Users/mulgogi/src/lutaml/lutaml-model")
+  src = checkout_lutaml_model
   builder = Opal::Builder.new
   builder.append_paths(File.join(src, "lib"))
   moxml_lib = ENV.fetch("MOXML_SRC", "/Users/mulgogi/src/lutaml/moxml/lib")
