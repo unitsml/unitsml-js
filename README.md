@@ -1,5 +1,14 @@
 # @unitsml/unitsml
 
+> **DEPRECATED.** This Opal-compiled package is retired: since the
+> parslet→PARG migration, `Unitsml.parse` cannot run under Opal (the
+> parsanol runtime is native). Use
+> [`@unitsml/unitsml-ts`](https://github.com/unitsml/unitsml-ts)
+> ([`@unitsml/unitsml-ts` on npm](https://www.npmjs.com/package/@unitsml/unitsml-ts)) —
+> the native TypeScript implementation on the shared checksummed
+> PARG artifact. No further releases will be made here.
+
+
 JavaScript release of [unitsml-ruby](https://github.com/unitsml/unitsml-ruby),
 Opal-compiled and published as `@unitsml/unitsml` on npm.
 
