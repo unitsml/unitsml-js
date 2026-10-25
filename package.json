@@ -45,7 +45,7 @@
     "@lutaml/opal-runtime": "^1.0.0",
     "@plurimath/mml": "^0.1.0",
     "@unitsml/unitsdb": "^3.0.0",
-    "esbuild": "^0.23.0",
+    "esbuild": "^0.25.0",
     "typescript": "^5.5.0"
   },
   "peerDependencies": {
