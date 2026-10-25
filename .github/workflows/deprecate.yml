@@ -1,0 +1,46 @@
+name: deprecate
+
+# One-shot operational deprecation of the retired npm packages, using
+# the same passwordless OIDC trusted-publisher auth as the release.
+# Dispatch manually; both messages point at the TypeScript stack.
+
+permissions:
+  contents: read
+  id-token: write
+
+on:
+  workflow_dispatch:
+    inputs:
+      which:
+        description: "Which package to deprecate"
+        required: true
+        type: choice
+        default: "unitsml"
+        options:
+          - unitsml
+          - unitsdb
+          - both
+
+jobs:
+  deprecate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Upgrade npm CLI (Trusted Publishers needs 10.9.1+)
+        run: |
+          npm install -g npm@latest
+          npm --version
+
+      - name: Deprecate @unitsml/unitsml
+        if: ${{ github.event.inputs.which != 'unitsdb' }}
+        run: |
+          npm deprecate @unitsml/unitsml "DEPRECATED: this Opal-compiled package cannot parse since the parslet->PARG migration (the parsanol runtime is native). Use @unitsml/unitsml-ts - the native TypeScript implementation on the shared checksummed PARG artifact."
+
+      - name: Deprecate @unitsml/unitsdb
+        if: ${{ github.event.inputs.which != 'unitsml' }}
+        run: |
+          npm deprecate @unitsml/unitsdb "DEPRECATED: this Opal-compiled package is retired (Unitsdb.bundled() was never implemented). The units dataset ships natively inside @unitsml/unitsml-ts."
